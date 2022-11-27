@@ -106,5 +106,29 @@ namespace System.Collections.Concurrent
 
             Task.WaitAll(_tasks);
         }
+
+        [IterationSetup(Target = nameof(BlockingCollection))]
+        public void SetupBlockingCollectionIteration()
+        {
+            var collection = new BlockingCollection<T>();
+
+            _barrier = new Barrier(NumThreads + 1);
+            _tasks = Enumerable.Range(0, NumThreads)
+                .Select(_ =>
+                    Task.Factory.StartNew(() =>
+                    {
+                        _barrier.SignalAndWait();
+
+                        for (int i = 0; i < Size; i++)
+                        {
+                            collection.Add(default);
+                            collection.GetConsumingEnumerable().Any();
+                        }
+                    }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default))
+                .ToArray();
+        }
+
+        [Benchmark]
+        public void BlockingCollection() => SignalAndWaitForAllTasks();
     }
 }
